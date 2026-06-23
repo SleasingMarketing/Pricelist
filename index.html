@@ -798,7 +798,9 @@ function render() {
       if (isGeneral) {
         const m = (p.model||'').toLowerCase();
         const d = (p.detail||'').toLowerCase();
-        const isIPhone15 = d.toLowerCase().includes('iphone 15 128 gb') && !d.toLowerCase().includes('pro') && !d.toLowerCase().includes('plus');
+        const isIPhone15 = d.toLowerCase().includes('iphone 15 ') && 
+                   !d.toLowerCase().includes('pro') && 
+                   !d.toLowerCase().includes('plus');
         // Android: ดอก 3% เท่านั้น
         if (isAndroid(p) && currentRate !== 3) return false;
 
