@@ -804,8 +804,8 @@ function render() {
         // Android: ดอก 3% เท่านั้น
         if (isAndroid(p) && currentRate !== 3) return false;
 
-        // iPhone 15: ดอก 3% เท่านั้น
-        if (isIPhone15 && currentRate !== 3) return false;
+        // iPhone 15: ไม่แสดงดอก 5%
+        if (isIPhone15 && currentRate === 5) return false;
 
         // iOS ดอก 3% (ไม่ใช่ iPhone 15): เฉพาะ iPhone 17
         if (isIOS(p) && !isIPhone15 && currentRate === 3) {
