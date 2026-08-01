@@ -748,16 +748,9 @@ function calcInstallment(price, ins, downPct, term, rate, isVAT, withIns) {
 
 function instDisplay(inst, baseInst, baseInterest, android, term) {
   // ตรวจจาก baseInst (ไม่รวมประกัน) แต่ apply กับทั้งรวมและไม่รวม
-  // ใช้เงื่อนไขเดียวกันทั้งมือ 1 และมือ 2
 
-  // เงื่อนไขที่ 1: ค่างวดขั้นต่ำ
+  // เงื่อนไขเดียว: ค่างวดขั้นต่ำ 400 บาท
   if (baseInst < 400) {
-    return '<div class="no-arrange">ไม่สามารถจัดได้</div>';
-  }
-
-  // เงื่อนไขที่ 2: ดอกเบี้ยรวมขั้นต่ำ แยกตาม OS
-  const minInterest = android ? 1000 : 2500;
-  if (baseInterest < minInterest) {
     return '<div class="no-arrange">ไม่สามารถจัดได้</div>';
   }
 
@@ -792,20 +785,24 @@ function render() {
       if (currentRate !== 3) return false;
     }
 
+    // 1.25%: เฉพาะ Android เท่านั้น
+    if (currentRate === 1.25 && !isAndroid(p)) return false;
+
     // ── มือสอง: ไม่ใช้เงื่อนไข iOS/Android rate restriction
     if (activeTab !== 'used') {
       // ── ทั่วไป
       if (isGeneral) {
         const m = (p.model||'').toLowerCase();
         const d = (p.detail||'').toLowerCase();
-        const isIPhone15 = d.toLowerCase().includes('iphone 15 ') && 
-                   !d.toLowerCase().includes('pro') && 
-                   !d.toLowerCase().includes('plus');
-        // Android: ดอก 3% เท่านั้น
-        if (isAndroid(p) && currentRate !== 3) return false;
+        // iPhone 15 เท่านั้น ไม่รวม Plus, Pro, Pro Max
+        const isIPhone15 = (m.includes('iphone 15') && !m.includes('pro') && !m.includes('plus')) ||
+                           (d.toLowerCase().includes('iphone 15') && !d.toLowerCase().includes('pro') && !d.toLowerCase().includes('plus'));
 
-        // iPhone 15: ไม่แสดงดอก 5%
-        if (isIPhone15 && currentRate === 5) return false;
+        // Android: ดอก 3% หรือ 1.25% เท่านั้น
+        if (isAndroid(p) && currentRate !== 3 && currentRate !== 1.25) return false;
+
+        // iPhone 15: ดอก 3% เท่านั้น
+        if (isIPhone15 && currentRate !== 3) return false;
 
         // iOS ดอก 3% (ไม่ใช่ iPhone 15): เฉพาะ iPhone 17
         if (isIOS(p) && !isIPhone15 && currentRate === 3) {
