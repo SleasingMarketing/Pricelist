@@ -795,8 +795,11 @@ function render() {
         const m = (p.model||'').toLowerCase();
         const d = (p.detail||'').toLowerCase();
         // iPhone 15 เท่านั้น ไม่รวม Plus, Pro, Pro Max
-        const isIPhone15 = (m.includes('iphone 15') && !m.includes('pro') && !m.includes('plus')) ||
-                           (d.toLowerCase().includes('iphone 15') && !d.toLowerCase().includes('pro') && !d.toLowerCase().includes('plus'));
+        // ตรวจจาก Detail ซึ่งมีช่องว่าง "iPhone 15 " - Plus/Pro ไม่มีช่องว่าง
+        const dLower = d.toLowerCase();
+        const isIPhone15 = dLower.includes('iphone 15 ') && 
+                           !dLower.includes('pro') && 
+                           !dLower.includes('plus');
 
         // Android: ดอก 3% หรือ 1.25% เท่านั้น
         if (isAndroid(p) && currentRate !== 3 && currentRate !== 1.25) return false;
@@ -933,13 +936,14 @@ function buildProductFilters() {
   const allOS = getUnique('os');
   renderPills('pills-os', allOS, selOS, val => {
     selOS = val; selBrand = ''; selModel = '';
-    // Android: force 3% interest only
+    // Android: อนุญาตเฉพาะ 1.25% และ 3%
     if (selOS.toLowerCase().includes('android')) {
-      sel.rate = '3%';
+      if (sel.rate !== '3%' && sel.rate !== '1.25%') sel.rate = '3%';
       document.querySelectorAll('#pills-rate .pill').forEach(p => {
-        p.classList.toggle('on', p.dataset.val === '3%');
-        p.style.opacity = p.dataset.val === '3%' ? '1' : '0.3';
-        p.style.pointerEvents = p.dataset.val === '3%' ? '' : 'none';
+        const allowed = p.dataset.val === '3%' || p.dataset.val === '1.25%';
+        p.classList.toggle('on', p.dataset.val === sel.rate);
+        p.style.opacity = allowed ? '1' : '0.3';
+        p.style.pointerEvents = allowed ? '' : 'none';
       });
     } else {
       document.querySelectorAll('#pills-rate .pill').forEach(p => {
