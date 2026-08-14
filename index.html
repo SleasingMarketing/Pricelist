@@ -801,14 +801,18 @@ function render() {
                            !dLower.includes('pro') && 
                            !dLower.includes('plus');
 
+        // Macbook: ดอก 3% เท่านั้น
+        const isMacbook = dLower.includes('macbook') || m.includes('macbook');
+        if (isMacbook && currentRate !== 3) return false;
+
         // Android: ดอก 3% หรือ 1.25% เท่านั้น
         if (isAndroid(p) && currentRate !== 3 && currentRate !== 1.25) return false;
 
-        // iPhone 15: ดอก 3% เท่านั้น
-        if (isIPhone15 && currentRate !== 3) return false;
+        // iPhone 15: ไม่แสดงดอก 5% เท่านั้น (แสดง 3/7/10%)
+        if (isIPhone15 && currentRate === 5) return false;
 
-        // iOS ดอก 3% (ไม่ใช่ iPhone 15): เฉพาะ iPhone 17
-        if (isIOS(p) && !isIPhone15 && currentRate === 3) {
+        // iOS ดอก 3% (ไม่ใช่ iPhone 15, ไม่ใช่ Macbook): เฉพาะ iPhone 17
+        if (isIOS(p) && !isIPhone15 && !isMacbook && currentRate === 3) {
           if (!m.includes('17') && !d.includes('17')) return false;
         }
       }
