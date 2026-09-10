@@ -761,57 +761,72 @@ function instDisplay(inst, baseInst, baseInterest, android, term) {
 
 function render() {
   const term    = parseFloat(sel.term) || 12;
-  const rate    = parseFloat(sel.rate) / 100 || 0.05;
+  const rate    = parseFloat(sel.rate) / 100 || 0.0115;
   const isVAT   = !(sel.vat && sel.vat.includes('No'));
   const withIns = sel.ins && sel.ins.includes('รวม') && !sel.ins.includes('ไม่');
   const useR    = sel.price && sel.price.toLowerCase().includes('rate');
   const downPct = parseFloat(sel.down) || 20;
 
-  // chips
-  const chips = [selOcc||null, selOS||null, selBrand||null, sel.vat, sel.ins, sel.price, `ดาวน์ ${sel.down}`, `${sel.term} งวด`, `ดอกเบี้ย ${sel.rate}`].filter(Boolean);
-  document.getElementById('chipRow').innerHTML = chips.map(c => `<div class="chip">${c}</div>`).join('');
+  // แสดงเงื่อนไขที่เลือก
+  const chips = [
+    selOcc || null,
+    selOS || null,
+    selBrand || null,
+    sel.vat,
+    sel.ins,
+    sel.price,
+    `ดาวน์ ${sel.down}`,
+    `${sel.term} งวด`,
+    `ดอกเบี้ย ${sel.rate}`
+  ].filter(Boolean);
+
+  document.getElementById('chipRow').innerHTML =
+    chips.map(c => `<div class="chip">${c}</div>`).join('');
 
   const q = (document.getElementById('searchBox').value || '').toLowerCase();
-  const currentProducts = activeTab === 'used' ? usedProducts : products;
-  const isAndroid = p => p.os.toLowerCase().includes('android');
-  const isIOS = p => p.os.toLowerCase().includes('ios') || p.os.toLowerCase().includes('apple');
-  const currentRate = parseFloat(sel.rate) || 3;
-  const isStudent = selOcc && selOcc.includes('นักศึกษา');
-  const isGeneral = selOcc && selOcc.includes('ทั่วไป');
+
+  const currentProducts =
+    activeTab === 'used' ? usedProducts : products;
+
+  const isAndroid = p =>
+    (p.os || '').toLowerCase().includes('android');
 
   const filtered = currentProducts.filter(p => {
-  if (!p.detail && !p.model) return false;
 
-  // ใช้ดอกเบี้ย 1.15% กับ Apple และ Android ทุกรุ่น
-  // ทั้งสินค้าใหม่และมือสอง
+    if (!p.detail && !p.model) return false;
 
-  // OS / Brand filter
-  if (selOS && p.os.toLowerCase().trim() !== selOS.toLowerCase().trim()) return false;
-  if (selBrand && p.brand.toLowerCase().trim() !== selBrand.toLowerCase().trim()) return false;
-
-  // Search
-  if (q) return (p.detail||'').toLowerCase().includes(q) ||
-              (p.model||'').toLowerCase().includes(q) ||
-              (p.brand||'').toLowerCase().includes(q);
-
-  return true;
-});
-
-        }
-      }
+    // OS
+    if (
+      selOS &&
+      (p.os || '').toLowerCase().trim() !==
+      selOS.toLowerCase().trim()
+    ) {
+      return false;
     }
 
-    // OS / Brand filter
-    if (selOS && p.os.toLowerCase().trim() !== selOS.toLowerCase().trim()) return false;
-    if (selBrand && p.brand.toLowerCase().trim() !== selBrand.toLowerCase().trim()) return false;
+    // Brand
+    if (
+      selBrand &&
+      (p.brand || '').toLowerCase().trim() !==
+      selBrand.toLowerCase().trim()
+    ) {
+      return false;
+    }
+
     // Search
-    if (q) return (p.detail||'').toLowerCase().includes(q) ||
-                  (p.model||'').toLowerCase().includes(q) ||
-                  (p.brand||'').toLowerCase().includes(q);
+    if (q) {
+      return (
+        (p.detail || '').toLowerCase().includes(q) ||
+        (p.model || '').toLowerCase().includes(q) ||
+        (p.brand || '').toLowerCase().includes(q)
+      );
+    }
+
     return true;
   });
 
   const badge = document.getElementById('resultBadge');
+
   if (filtered.length) {
     badge.style.display = '';
     badge.textContent = `${filtered.length} รายการ`;
@@ -819,59 +834,161 @@ function render() {
     badge.style.display = 'none';
   }
 
-  if (!filtered.length) { showEmpty(); return; }
+  if (!filtered.length) {
+    showEmpty();
+    return;
+  }
 
-  let rows = ''; let lastModel = '';
+  let rows = '';
+  let lastModel = '';
+
   for (const p of filtered) {
+
     if (p.model !== lastModel) {
       lastModel = p.model;
-      rows += `<tr class="tr-group"><td colspan="6">${p.brand} · ${p.model}</td></tr>`;
-    }
-    const basePrice = useR && p.priceR ? p.priceR : p.price;
-    if (!basePrice && !p.detail) continue;
-    const { down, finAmt, inst } = calcInstallment(basePrice, p.ins, downPct, term, rate, isVAT, withIns);
-    // Base check: always calculate WITHOUT insurance for threshold check
-    const baseCheck = calcInstallment(basePrice, p.ins, downPct, term, rate, isVAT, false);
-    const baseInst = baseCheck.inst;
-    const baseInterest = (baseInst * term) - baseCheck.finAmt;
-    const cleanName = p.detail.replace(/^(APPLE|HONOR|INFINIX)\s+/i, '');
-    const insTag = withIns ? `<div class="price-ins">+ประกัน ฿${fmt(p.ins)}</div>` : '';
 
-    rows += `<tr>
-      <td>
-        <div class="model-name">${cleanName}${activeTab==="used"?"<span class=\"used-tag\">มือสอง</span>":""}</div>
-        <div class="model-sub">${p.brand} · ${p.os}</div>
-      </td>
-      <td class="col-r"><div class="price-val">฿${fmt(basePrice)}</div>${insTag}</td>
-      <td class="sep-l"><div class="down-val">฿${fmt(down)}</div></td>
-      <td><div class="fin-val">฿${fmt(finAmt)}</div></td>
-      <td class="sep-l">${instDisplay(inst, baseInst, baseInterest, isAndroid(p), term)}</td>
-    </tr>`;
+      rows += `
+        <tr class="tr-group">
+          <td colspan="6">${p.brand} · ${p.model}</td>
+        </tr>
+      `;
+    }
+
+    const basePrice =
+      useR && p.priceR ? p.priceR : p.price;
+
+    if (!basePrice && !p.detail) continue;
+
+    const result = calcInstallment(
+      basePrice,
+      p.ins,
+      downPct,
+      term,
+      rate,
+      isVAT,
+      withIns
+    );
+
+    const baseCheck = calcInstallment(
+      basePrice,
+      p.ins,
+      downPct,
+      term,
+      rate,
+      isVAT,
+      false
+    );
+
+    const baseInst = baseCheck.inst;
+    const baseInterest =
+      (baseInst * term) - baseCheck.finAmt;
+
+    const cleanName =
+      (p.detail || '').replace(
+        /^(APPLE|HONOR|INFINIX)\s+/i,
+        ''
+      );
+
+    const insTag = withIns
+      ? `<div class="price-ins">+ประกัน ฿${fmt(p.ins)}</div>`
+      : '';
+
+    rows += `
+      <tr>
+        <td>
+          <div class="model-name">
+            ${cleanName}
+            ${
+              activeTab === 'used'
+                ? '<span class="used-tag">มือสอง</span>'
+                : ''
+            }
+          </div>
+
+          <div class="model-sub">
+            ${p.brand} · ${p.os}
+          </div>
+        </td>
+
+        <td class="col-r">
+          <div class="price-val">
+            ฿${fmt(basePrice)}
+          </div>
+          ${insTag}
+        </td>
+
+        <td class="sep-l">
+          <div class="down-val">
+            ฿${fmt(result.down)}
+          </div>
+        </td>
+
+        <td>
+          <div class="fin-val">
+            ฿${fmt(result.finAmt)}
+          </div>
+        </td>
+
+        <td class="sep-l">
+          ${instDisplay(
+            result.inst,
+            baseInst,
+            baseInterest,
+            isAndroid(p),
+            term
+          )}
+        </td>
+      </tr>
+    `;
   }
 
   fixStickyHeader();
+
   document.getElementById('tableWrap').innerHTML = `
     <div class="table-container">
       <table>
+
         <thead>
+
           <tr>
             <th>รุ่น / รายละเอียด</th>
-            <th class="col-r">ราคา${withIns?'+ประกัน':''}</th>
+            <th class="col-r">
+              ราคา${withIns ? '+ประกัน' : ''}
+            </th>
             <th class="sep-l">เงินดาวน์</th>
             <th>ยอดจัด</th>
             <th class="sep-l">ค่างวด / เดือน</th>
           </tr>
+
           <tr>
             <th></th>
-            <th class="col-r">${useR ? 'ราคา Rate' : 'ราคาปกติ'}</th>
-            <th class="sep-l">${sel.down} ของราคา</th>
-            <th>ราคา − ดาวน์${withIns?' + ประกัน':''}</th>
-            <th class="sep-l">${sel.term} งวด · ดบ.${sel.rate}</th>
+
+            <th class="col-r">
+              ${useR ? 'ราคา Rate' : 'ราคาปกติ'}
+            </th>
+
+            <th class="sep-l">
+              ${sel.down} ของราคา
+            </th>
+
+            <th>
+              ราคา − ดาวน์${withIns ? ' + ประกัน' : ''}
+            </th>
+
+            <th class="sep-l">
+              ${sel.term} งวด · ดบ.${sel.rate}
+            </th>
           </tr>
+
         </thead>
-        <tbody>${rows}</tbody>
+
+        <tbody>
+          ${rows}
+        </tbody>
+
       </table>
-    </div>`;
+    </div>
+  `;
 }
 
 function fmt(n) { return Math.round(n||0).toLocaleString('th-TH'); }
@@ -904,59 +1021,88 @@ function showError(msg) {
 }
 
 function buildProductFilters() {
+
   const bar = document.getElementById('prodFilterBar');
   bar.style.display = 'flex';
 
   function renderPills(id, vals, selVal, onChange) {
+
     const container = document.getElementById(id);
-    container.innerHTML = `<div class="pill${!selVal?' on':''}" data-val="">ทั้งหมด</div>` +
-      vals.map(v => `<div class="pill${selVal===v?' on':''}" data-val="${v}">${v}</div>`).join('');
+
+    container.innerHTML =
+      `<div class="pill${!selVal ? ' on' : ''}" data-val="">ทั้งหมด</div>` +
+      vals.map(v =>
+        `<div class="pill${selVal === v ? ' on' : ''}" data-val="${v}">${v}</div>`
+      ).join('');
+
     container.querySelectorAll('.pill').forEach(el => {
+
       el.addEventListener('click', function() {
-        container.querySelectorAll('.pill').forEach(p => p.classList.remove('on'));
+
+        container
+          .querySelectorAll('.pill')
+          .forEach(p => p.classList.remove('on'));
+
         this.classList.add('on');
+
         onChange(this.dataset.val);
       });
+
     });
   }
-const allOS = getUnique('os');
 
-renderPills('pills-os', allOS, selOS, val => {
-  selOS = val;
-  selBrand = '';
-  selModel = '';
 
-  // ดอกเบี้ยคงที่ 1.15%
-  sel.rate = '1.15%';
+  // =========================
+  // OS
+  // =========================
 
-  buildProductFilters();
-  render();
-});
+  const allOS = getUnique('os');
 
-const filteredBrands = getUnique('brand').filter(b =>
-  !selOS || products.some(p =>
-    p.os.toLowerCase().trim() === selOS.toLowerCase().trim() &&
-    p.brand === b
-  )
-);
+  renderPills(
+    'pills-os',
+    allOS,
+    selOS,
+    val => {
 
-renderPills('pills-brand', filteredBrands, selBrand, val => {
-  selBrand = val;
-  selModel = '';
+      selOS = val;
+      selBrand = '';
+      selModel = '';
 
-  buildProductFilters();
-  render();
-});
+      // ดอกเบี้ยคงที่ 1.15%
+      sel.rate = '1.15%';
+
+      buildProductFilters();
+      render();
+    }
+  );
+
+
+  // =========================
+  // BRAND
+  // =========================
 
   const filteredBrands = getUnique('brand').filter(b =>
-    !selOS || products.some(p =>
-      p.os.toLowerCase().trim() === selOS.toLowerCase().trim() && p.brand === b
+    !selOS ||
+    products.some(p =>
+      p.os.toLowerCase().trim() ===
+      selOS.toLowerCase().trim() &&
+      p.brand === b
     )
   );
-  renderPills('pills-brand', filteredBrands, selBrand, val => {
-    selBrand = val; selModel = '';
-    buildProductFilters(); render();
-  });
+
+  renderPills(
+    'pills-brand',
+    filteredBrands,
+    selBrand,
+    val => {
+
+      selBrand = val;
+      selModel = '';
+
+      buildProductFilters();
+      render();
+    }
+  );
 
 }
 
