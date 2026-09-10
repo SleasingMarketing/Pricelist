@@ -787,6 +787,11 @@ function render() {
 
     // 1.25%: เฉพาะ Android เท่านั้น
     if (currentRate === 1.25 && !isAndroid(p)) return false;
+    // 1.15%: เฉพาะ iPhone 18 เท่านั้น
+const modelText = `${p.model || ''} ${p.detail || ''}`.toLowerCase();
+const isIPhone18 = modelText.includes('iphone 18');
+
+if (currentRate === 1.15 && !isIPhone18) return false;
 
     // ── มือสอง: ไม่ใช้เงื่อนไข iOS/Android rate restriction
     if (activeTab !== 'used') {
