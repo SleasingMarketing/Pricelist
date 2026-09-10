@@ -703,29 +703,30 @@ function buildFilters() {
     el.addEventListener('click', function() {
       const k = this.dataset.key;
       if (k === 'occ') {
-        selOcc = this.dataset.val;
-        document.querySelectorAll(`#pills-occ .pill`).forEach(p => p.classList.remove('on'));
-        this.classList.add('on');
-        const isStud = selOcc.includes('นักศึกษา');
-        // นักศึกษา: lock rate to 3%
-        if (isStud) {
-          sel.rate = '3%';
-          document.querySelectorAll('#pills-rate .pill').forEach(p => {
-            p.classList.toggle('on', p.dataset.val === '3%');
-            p.style.opacity = p.dataset.val === '3%' ? '1' : '0.3';
-            p.style.pointerEvents = p.dataset.val === '3%' ? '' : 'none';
-          });
-        } else {
-          document.querySelectorAll('#pills-rate .pill').forEach(p => {
-            p.style.opacity = ''; p.style.pointerEvents = '';
-          });
-        }
-      } else {
-        sel[k] = this.dataset.val;
-        document.querySelectorAll(`#pills-${k} .pill`).forEach(p => p.classList.remove('on'));
-        this.classList.add('on');
-      }
-      render();
+  selOcc = this.dataset.val;
+
+  document.querySelectorAll(`#pills-occ .pill`)
+    .forEach(p => p.classList.remove('on'));
+
+  this.classList.add('on');
+
+  // ดอกเบี้ยคงที่ 1.15%
+  sel.rate = '1.15%';
+
+  document.querySelectorAll('#pills-rate .pill').forEach(p => {
+    p.classList.toggle('on', p.dataset.val === '1.15%');
+  });
+
+} else {
+  sel[k] = this.dataset.val;
+
+  document.querySelectorAll(`#pills-${k} .pill`)
+    .forEach(p => p.classList.remove('on'));
+
+  this.classList.add('on');
+}
+
+render();
     });
   });
 }
@@ -918,22 +919,34 @@ function buildProductFilters() {
       });
     });
   }
+const allOS = getUnique('os');
 
-  const allOS = getUnique('os');
-  renderPills('pills-os', allOS, selOS, val => {
-    selOS = val; selBrand = ''; selModel = '';
-    sel.rate = '1.15%';
-      buildProductFilters();
+renderPills('pills-os', allOS, selOS, val => {
+  selOS = val;
+  selBrand = '';
+  selModel = '';
+
+  // ดอกเบี้ยคงที่ 1.15%
+  sel.rate = '1.15%';
+
+  buildProductFilters();
   render();
-      });
-    } else {
-      document.querySelectorAll('#pills-rate .pill').forEach(p => {
-        p.style.opacity = '';
-        p.style.pointerEvents = '';
-      });
-    }
-    buildProductFilters(); render();
-  });
+});
+
+const filteredBrands = getUnique('brand').filter(b =>
+  !selOS || products.some(p =>
+    p.os.toLowerCase().trim() === selOS.toLowerCase().trim() &&
+    p.brand === b
+  )
+);
+
+renderPills('pills-brand', filteredBrands, selBrand, val => {
+  selBrand = val;
+  selModel = '';
+
+  buildProductFilters();
+  render();
+});
 
   const filteredBrands = getUnique('brand').filter(b =>
     !selOS || products.some(p =>
