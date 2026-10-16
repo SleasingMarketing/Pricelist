@@ -451,6 +451,11 @@ tbody tr:not(.tr-group) td:first-child {
     display: flex !important;
   }
 }
+.promo-banner {
+  margin: 0 0 10px; padding: 10px 16px; border-radius: 10px;
+  background: linear-gradient(90deg, var(--red), #e25a3b);
+  color: #fff; font-weight: 700; font-size: 15px;
+}
 </style>
 </head>
 <body>
@@ -464,6 +469,9 @@ tbody tr:not(.tr-group) td:first-child {
   </button>
   <button class="tab-btn" id="tab-used" onclick="switchTab('used')">
     🔄 มือสอง <span class="tab-badge" id="usedCount">-</span>
+  </button>
+  <button class="tab-btn" id="tab-promo" onclick="switchTab('promo')">
+    🔥 โปรโมชั่น Lock Down <span class="tab-badge" id="promoCount">-</span>
   </button>
 </div>
 
@@ -559,6 +567,15 @@ const URL_PRODUCT   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTqK4anDk
 const URL_USED      = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTqK4anDk3ndNyyyY5M0zBzUhp9oGwZVdAvGFyzrMu-AXBR6wUkIqqcRR4WAqW5O3-0d90h3uiN_okO/pub?gid=2127143357&single=true&output=csv';
 const URL_CONDITION = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTqK4anDk3ndNyyyY5M0zBzUhp9oGwZVdAvGFyzrMu-AXBR6wUkIqqcRR4WAqW5O3-0d90h3uiN_okO/pub?gid=346594305&single=true&output=csv';
 
+// ══ โปรโมชั่น Lock Down ══
+// ใส่ตัวเลข gid ของแท็บ Promotion (ดูจาก URL ของ sheet ท้ายลิงก์ ...gid=XXXX)
+const PROMO_GID = 'ใส่ตัวเลข gid ของแท็บ Promotion ตรงนี้';
+const URL_PROMO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTqK4anDk3ndNyyyY5M0zBzUhp9oGwZVdAvGFyzrMu-AXBR6wUkIqqcRR4WAqW5O3-0d90h3uiN_okO/pub?gid=' + PROMO_GID + '&single=true&output=csv';
+let promoItems = [];
+let selPromoDown = '';
+const normKey = s => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+const currentList = () => activeTab === 'promo' ? promoItems : products;
+
 let products = [];
 let usedProducts = [];
 let activeTab = 'new'; // 'new' or 'used'
@@ -603,17 +620,24 @@ async function loadAll() {
   icon.style.animation = 'spin 0.75s linear infinite';
   showLoading();
   try {
-    const [rP, rC, rU] = await Promise.all([
+    const [rP, rC, rU, rPr] = await Promise.all([
       fetch(URL_PRODUCT).then(r => { if(!r.ok) throw new Error('Product sheet error'); return r.text(); }),
       fetch(URL_CONDITION).then(r => { if(!r.ok) throw new Error('Condition sheet error'); return r.text(); }),
-      fetch(URL_USED).then(r => { if(!r.ok) throw new Error('Used sheet error'); return r.text(); })
+      fetch(URL_USED).then(r => { if(!r.ok) throw new Error('Used sheet error'); return r.text(); }),
+      /^\d+$/.test(PROMO_GID)
+        ? fetch(URL_PROMO).then(r => r.ok ? r.text() : '').catch(() => '')
+        : Promise.resolve('')
     ]);
     parseProducts(rP);
     parseConditions(rC);
     parseUsed(rU);
+    parsePromo(rPr);
     buildFilters();
+    buildPromoPills();
     buildProductFilters();
+    applyDownFgVisibility();
     render();
+    if (location.hash === '#promo' && activeTab !== 'promo') switchTab('promo');
   } catch(e) {
     showError(e.message);
   }
@@ -639,7 +663,7 @@ function parseProducts(csv) {
 }
 
 function getUnique(key) {
-  return [...new Set(products.map(p => p[key]).filter(Boolean))];
+  return [...new Set(currentList().map(p => p[key]).filter(Boolean))];
 }
 
 function parseUsed(csv) {
@@ -661,6 +685,69 @@ function parseUsed(csv) {
   document.getElementById('usedCount').textContent = usedProducts.length;
 }
 
+function normDate(s) {
+  s = String(s || '').trim();
+  if (!s) return '';
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); // dd/mm/yyyy
+  if (m) {
+    let y = +m[3]; if (y > 2400) y -= 543;
+    return y + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+  }
+  return '';
+}
+
+function parsePromo(csv) {
+  promoItems = [];
+  if (csv) {
+    const rows = parseCSV(csv);
+    const byDetail = new Map(products.map(p => [normKey(p.detail), p]));
+    const d = new Date();
+    const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    for (let i = 1; i < rows.length; i++) {
+      const [detail, until, special] = rows[i];
+      if (!detail) continue;
+      const end = normDate(until);
+      if (end && end < today) continue; // หมดโปรแล้ว
+      const base = byDetail.get(normKey(detail));
+      if (!base) { console.warn('Promotion: ไม่พบรุ่นนี้ในแท็บ Product →', detail); continue; }
+      const sp = num(special);
+      promoItems.push(Object.assign({}, base, {
+        price:  sp || base.price,
+        priceR: sp ? 0 : base.priceR
+      }));
+    }
+    // จัดรุ่นเดียวกันให้อยู่ติดกัน (กันหัวกลุ่มซ้ำ)
+    const first = new Map();
+    promoItems.forEach(p => { if (!first.has(p.model)) first.set(p.model, first.size); });
+    promoItems.sort((a, b) => first.get(a.model) - first.get(b.model));
+  }
+  document.getElementById('promoCount').textContent = promoItems.length;
+}
+
+function buildPromoPills() {
+  const c = document.getElementById('pills-promodown');
+  if (!c) return;
+  const opts = (conditions.promoDown && conditions.promoDown.length) ? conditions.promoDown : ['5%', '10%', '15%'];
+  if (!opts.includes(selPromoDown)) selPromoDown = opts[0];
+  c.innerHTML = opts.map(v => `<div class="pill${selPromoDown === v ? ' on' : ''}" data-val="${v}">${v}</div>`).join('');
+  c.querySelectorAll('.pill').forEach(el => el.addEventListener('click', function() {
+    selPromoDown = this.dataset.val;
+    c.querySelectorAll('.pill').forEach(p => p.classList.remove('on'));
+    this.classList.add('on');
+    render();
+  }));
+}
+
+function applyDownFgVisibility() {
+  const isPromo = activeTab === 'promo';
+  const dn = document.getElementById('pills-down');
+  if (dn && dn.parentElement) dn.parentElement.style.display = isPromo ? 'none' : '';
+  const pf = document.getElementById('promoDownFg');
+  if (pf) pf.style.display = isPromo ? '' : 'none';
+}
+
 function parseConditions(csv) {
   const rows = parseCSV(csv);
   conditions = { term:[], rate:['1.15%'], vat:[], ins:[], price:[], down:[], occ:[] };
@@ -671,6 +758,12 @@ function parseConditions(csv) {
   if (k === 'rate') return;
   if (r[j] && !conditions[k].includes(r[j])) conditions[k].push(r[j]);
 });
+  }
+  // ตัวเลือกเงินดาวน์ของหน้าโปรโมชั่น: คอลัมน์ H (ถ้าไม่มี ใช้ 5% 10% 15%)
+  conditions.promoDown = [];
+  for (let i = 1; i < rows.length; i++) {
+    const v = (rows[i][7] || '').trim();
+    if (v && !conditions.promoDown.includes(v)) conditions.promoDown.push(v);
   }
   // set defaults
   keys.forEach(k => { if (!sel[k] && conditions[k][0]) sel[k] = conditions[k][0]; });
@@ -698,6 +791,10 @@ function buildFilters() {
       </div>
     </div>`;
   }
+  html += `<div class="fg" id="promoDownFg" style="display:none">
+      <div class="fg-label">เงินดาวน์ (โปรโมชั่น)</div>
+      <div class="fg-pills" id="pills-promodown"></div>
+    </div>`;
   document.getElementById('filtersArea').innerHTML = html;
   document.getElementById('filtersArea').querySelectorAll('.pill').forEach(el => {
     el.addEventListener('click', function() {
@@ -765,17 +862,19 @@ function render() {
   const isVAT   = !(sel.vat && sel.vat.includes('No'));
   const withIns = sel.ins && sel.ins.includes('รวม') && !sel.ins.includes('ไม่');
   const useR    = sel.price && sel.price.toLowerCase().includes('rate');
-  const downPct = parseFloat(sel.down) || 20;
+  const isPromo = activeTab === 'promo';
+  const downPct = isPromo ? (parseFloat(selPromoDown) || 5) : (parseFloat(sel.down) || 20);
 
   // แสดงเงื่อนไขที่เลือก
   const chips = [
+    isPromo ? 'โปรโมชั่น Lock Down' : null,
     selOcc || null,
     selOS || null,
     selBrand || null,
     sel.vat,
     sel.ins,
     sel.price,
-    `ดาวน์ ${sel.down}`,
+    `ดาวน์ ${isPromo ? selPromoDown : sel.down}`,
     `${sel.term} งวด`,
     `ดอกเบี้ย ${sel.rate}`
   ].filter(Boolean);
@@ -786,6 +885,7 @@ function render() {
   const q = (document.getElementById('searchBox').value || '').toLowerCase();
 
   const currentProducts =
+    activeTab === 'promo' ? promoItems :
     activeTab === 'used' ? usedProducts : products;
 
   const isAndroid = p =>
@@ -835,7 +935,7 @@ function render() {
   }
 
   if (!filtered.length) {
-    showEmpty();
+    showEmpty(isPromo && !promoItems.length ? 'ยังไม่มีสินค้าโปรโมชั่นในขณะนี้' : undefined);
     return;
   }
 
@@ -945,6 +1045,7 @@ function render() {
   fixStickyHeader();
 
   document.getElementById('tableWrap').innerHTML = `
+    ${isPromo ? '<div class="promo-banner">🔥 โปรโมชั่น Lock Down</div>' : ''}
     <div class="table-container">
       <table>
 
@@ -968,7 +1069,7 @@ function render() {
             </th>
 
             <th class="sep-l">
-              ${sel.down} ของราคา
+              ${isPromo ? selPromoDown : sel.down} ของราคา
             </th>
 
             <th>
@@ -1002,12 +1103,12 @@ function showLoading() {
     </div>`;
 }
 
-function showEmpty() {
+function showEmpty(title) {
   document.getElementById('tableWrap').innerHTML = `
     <div class="state-box">
       <div class="state-icon">📋</div>
-      <div class="state-title">ไม่พบรายการ</div>
-      <div class="state-sub">ลองค้นหาด้วยคำอื่น หรือเปลี่ยนเงื่อนไขการกรอง</div>
+      <div class="state-title">${title || 'ไม่พบรายการ'}</div>
+      <div class="state-sub">${title ? '' : 'ลองค้นหาด้วยคำอื่น หรือเปลี่ยนเงื่อนไขการกรอง'}</div>
     </div>`;
 }
 
@@ -1083,7 +1184,7 @@ function buildProductFilters() {
 
   const filteredBrands = getUnique('brand').filter(b =>
     !selOS ||
-    products.some(p =>
+    currentList().some(p =>
       p.os.toLowerCase().trim() ===
       selOS.toLowerCase().trim() &&
       p.brand === b
@@ -1108,10 +1209,20 @@ function buildProductFilters() {
 
 document.getElementById('searchBox').addEventListener('input', () => render());
 function switchTab(tab) {
+  const prevTab = activeTab;
   activeTab = tab;
+
+  // เข้า/ออกหน้าโปร: รีเซ็ต OS/Brand เพราะรายการสินค้าคนละชุด
+  if ((prevTab === 'promo') !== (tab === 'promo')) {
+    selOS = ''; selBrand = ''; selModel = '';
+    buildProductFilters();
+  }
 
   document.getElementById('tab-new').classList.toggle('active', tab === 'new');
   document.getElementById('tab-used').classList.toggle('active', tab === 'used');
+  document.getElementById('tab-promo').classList.toggle('active', tab === 'promo');
+  applyDownFgVisibility();
+  try { history.replaceState(null, '', tab === 'promo' ? '#promo' : location.pathname + location.search); } catch (e) {}
 
   // ดอกเบี้ยคงที่ 1.15% ทั้งมือ 1 และมือ 2
   sel.rate = '1.15%';
