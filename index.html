@@ -569,8 +569,9 @@ const URL_CONDITION = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTqK4anDk
 
 // ══ โปรโมชั่น Lock Down ══
 // ใส่ตัวเลข gid ของแท็บ Promotion (ดูจาก URL ของ sheet ท้ายลิงก์ ...gid=XXXX)
-const PROMO_GID = 'ใส่ตัวเลข gid ของแท็บ Promotion ตรงนี้';
-const URL_PROMO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTqK4anDk3ndNyyyY5M0zBzUhp9oGwZVdAvGFyzrMu-AXBR6wUkIqqcRR4WAqW5O3-0d90h3uiN_okO/pub?gid=' + PROMO_GID + '&single=true&output=csv';
+// ดึงแท็บ Promotion ด้วยชื่อแท็บ (ไม่ต้องใช้ gid) — ไฟล์ต้องตั้งแชร์เป็น "ทุกคนที่มีลิงก์ดูได้"
+const SHEET_ID = '1qSt8Kp4m5_TXE-4GfDsqanCrO7m-YOwKp9aJ-TG4G68';
+const URL_PROMO = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:csv&sheet=Promotion';
 let promoItems = [];
 let selPromoDown = '';
 const normKey = s => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -624,9 +625,7 @@ async function loadAll() {
       fetch(URL_PRODUCT).then(r => { if(!r.ok) throw new Error('Product sheet error'); return r.text(); }),
       fetch(URL_CONDITION).then(r => { if(!r.ok) throw new Error('Condition sheet error'); return r.text(); }),
       fetch(URL_USED).then(r => { if(!r.ok) throw new Error('Used sheet error'); return r.text(); }),
-      /^\d+$/.test(PROMO_GID)
-        ? fetch(URL_PROMO).then(r => r.ok ? r.text() : '').catch(() => '')
-        : Promise.resolve('')
+      fetch(URL_PROMO).then(r => r.ok ? r.text() : '').catch(() => '')
     ]);
     parseProducts(rP);
     parseConditions(rC);
