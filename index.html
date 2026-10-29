@@ -705,7 +705,7 @@ function parsePromo(csv) {
     const d = new Date();
     const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     for (let i = 1; i < rows.length; i++) {
-      const [detail, until, special] = rows[i];
+      const [detail, until, special, zeroDown] = rows[i];
       if (!detail) continue;
       const end = normDate(until);
       if (end && end < today) continue; // หมดโปรแล้ว
@@ -714,7 +714,8 @@ function parsePromo(csv) {
       const sp = num(special);
       promoItems.push(Object.assign({}, base, {
         price:  sp || base.price,
-        priceR: sp ? 0 : base.priceR
+        priceR: sp ? 0 : base.priceR,
+        allowZero: String(zeroDown || '').trim() !== '' && parseFloat(zeroDown) === 0 // คอลัมน์ D = 0% → ดาวน์ 0% ได้
       }));
     }
     // จัดรุ่นเดียวกันให้อยู่ติดกัน (กันหัวกลุ่มซ้ำ)
@@ -862,7 +863,7 @@ function render() {
   const withIns = sel.ins && sel.ins.includes('รวม') && !sel.ins.includes('ไม่');
   const useR    = sel.price && sel.price.toLowerCase().includes('rate');
   const isPromo = activeTab === 'promo';
-  const downPct = isPromo ? (parseFloat(selPromoDown) || 5) : (parseFloat(sel.down) || 20);
+  const downPct = isPromo ? (isNaN(parseFloat(selPromoDown)) ? 5 : parseFloat(selPromoDown)) : (parseFloat(sel.down) || 20);
 
   // แสดงเงื่อนไขที่เลือก
   const chips = [
@@ -893,6 +894,9 @@ function render() {
   const filtered = currentProducts.filter(p => {
 
     if (!p.detail && !p.model) return false;
+
+    // โปรโมชั่น: เลือกดาวน์ 0% → ซ่อนรุ่นที่ไม่ได้รับสิทธิ์
+    if (isPromo && parseFloat(selPromoDown) === 0 && !p.allowZero) return false;
 
     // OS
     if (
